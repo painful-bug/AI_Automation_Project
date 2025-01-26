@@ -69,9 +69,14 @@ def sort_contacts():
 
 # Task 5
 def extract_recent_log_lines():
-
-    pass
-
+    dir_path = "../data/logs/"
+    log_files = os.listdir(dir_path)
+    max_filename = max(log_files, key=lambda x: int(x.split("-")[1].split(".")[0]))
+    with open(f"../data/logs/{max_filename}", "r") as f:
+        lines = [next(f) for _ in range(10)]
+        with open("../data/logs-recent.txt", "w") as fw:
+            for line in lines:
+                fw.write(line)
 # Task 6
 def create_docs_index():
     index = {}
@@ -102,7 +107,7 @@ def extract_sender_email():
     with open("../data/email-sender.txt", "w") as f:
         f.write(response)
 
-# Task 8
+# Task 8 - PENDING
 def extract_credit_card_number():
     pass
 
