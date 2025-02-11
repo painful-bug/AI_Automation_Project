@@ -5,10 +5,9 @@ import requests
 from prompts import system_prompt
 from sklearn.metrics.pairwise import cosine_similarity
 from dotenv import load_dotenv
+
 load_dotenv()
 
-client = OpenAI(api_key=os.environ["AIPROXY_TOKEN"])
-client.base_url = "https://aiproxy.sanand.workers.dev/openai/"
 BASE_URL = "http://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
 headers = {
     "Content-Type": "application/json",
@@ -18,6 +17,8 @@ headers = {
 
 def cosine_sim(embedding1, embedding2):
     return cosine_similarity([embedding1], [embedding2])[0][0]
+
+
 def request_ai_proxy(payload, debug=False, embedding=False):
     if embedding:
         print("USING EMBEDDINGS")
@@ -27,18 +28,18 @@ def request_ai_proxy(payload, debug=False, embedding=False):
     BASE_URL_DEBUG = "http://localhost:11434/api/generate"
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {os.environ["AIPROXY_TOKEN"]}"
-        }
-    # if debug == True:
-    response = requests.post(BASE_URL, headers=headers, json=payload)
-    # else:
-    #     response = requests.post(BASE_URL_DEBUG, json=payload)
+        "Authorization": f"Bearer {os.environ['AIPROXY_TOKEN']}",
+    }
+    if debug == False:
+        response = requests.post(BASE_URL, headers=headers, json=payload)
+    else:
+        response = requests.post(BASE_URL_DEBUG, json=payload)
 
     if response.status_code == 200:
         result = response.json()
-        # if debug == True:
-        #     print("USING OLLAMA")
-        #     return result["choices"][0]["message"]
+        if debug == True:
+            print("USING OLLAMA")
+            return result
         print("USING OPENAI")
         if embedding:
             return result
@@ -47,6 +48,7 @@ def request_ai_proxy(payload, debug=False, embedding=False):
         print(f"Error: {response.status_code}")
         print(response.text)
         return 500
+
 
 def get_func_name(task_descr: str):
     data = {

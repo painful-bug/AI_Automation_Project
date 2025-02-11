@@ -12,15 +12,17 @@ def run():
         func_name = res["func_name"]
         args = res.get("arguments", [])
         print("ARGUMENTS : ", args)
-        if args:
-            generated_func = globals()[func_name](*args)
+        try:
+            if args:
+                generated_func = globals()[func_name](*args)
+            else:
+                generated_func = globals()[func_name]()
             print(generated_func)
             res = f"{func_name} executed successfully"
-        else:
-            generated_func = globals()[func_name]()
-            print(generated_func)
-            res = f"{func_name} executed successfully"
+        except Exception as e:
+            res = None
+            print("error executing function : ", e)
     except Exception as e:
         res = None
-        print("error : ", e)
+        print("error retrieving data from API Call : ", e)
     return jsonify(res)
