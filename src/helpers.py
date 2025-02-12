@@ -71,8 +71,84 @@ def get_func_name(task_descr: str):
     return answer_json
 
 
-# query = """
-# format the data in the /data/format.md file
-# """
-# ans = execute_task(query)
-# print(ans)
+def code_generation_loop_back_cot(task_descr: str):
+    # Initialize variables to track the conversation and code state
+    conversation_history = []
+    max_iterations = 5
+    iteration = 0
+    
+    # Initial system prompt for code generation
+    system_message = {
+        "role": "system",
+        "content": """You are an AI coding assistant that writes and debugs Python code. 
+When given a task:
+1. Write code to accomplish it
+2. Test the code for errors
+3. If there are errors, analyze them and suggest fixes
+4. Continue this process until the code works correctly
+Be precise and focus on writing working code.
+
+An example task is : Scrape the following website : https://webscraper.io/test-sites/e-commerce/allinone and print the product names along with their prices.
+
+"""
+    }
+    
+    conversation_history.append(system_message)
+    
+    # Add the user's task description to the conversation
+    user_message = {
+        "role": "user",
+        "content": task_descr
+    }
+    conversation_history.append(user_message)
+    
+    while iteration < max_iterations:
+        # Get code generation/debugging response
+        response = request_ai_proxy(
+            payload={
+                "model": "smallthinker:latest",
+                "messages": conversation_history
+            },
+            debug=True
+        )
+        
+        if not response:
+            return "Error getting AI response"
+            
+        # Extract code from response
+        try:
+            # Execute the generated code in a safe environment
+            code_output = {}
+            exec_globals = {}
+            try:
+                print("CODE GENERATED: \n", response)
+                print("\nEXECUTE CODE? y/n")
+                if input() == "n":
+                    return "Code execution skipped"
+                exec(response, exec_globals)
+                code_output["result"] = "Success"
+                code_output["output"] = exec_globals.get("output", "Code executed successfully")
+                return code_output
+            except Exception as e:
+                # If there are errors, add them to conversation for debugging
+                error_message = {
+                    "role": "user",
+                    "content": f"""The code generated had the following error:
+Error type: {type(e).__name__}
+Error message: {str(e)}
+Please debug the code and provide a corrected version."""
+                }
+                conversation_history.append(error_message)
+                
+                print("CONVERSATION HISTORY:", conversation_history)
+        except Exception as parse_error:
+            conversation_history.append({
+                "role": "user", 
+                "content": f"Failed to parse response. Error: {str(parse_error)}"
+            })
+        
+        iteration += 1
+        
+    return "Max iterations reached without successful code execution"
+
+code_generation_loop_back_cot("Clone the git repo : https://github.com/painful-bug/testing.git and make a commit to it")

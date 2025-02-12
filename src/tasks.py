@@ -219,19 +219,20 @@ def clone_and_commit(url=None):
 
 # Task B5 - Run a SQL query on a SQLite or DuckDB database
 
-def run_sql_query(query, db_type = "sqlite"):
+def run_sql_query(query, db_type = "sqlite", db_path=None):
     if db_type == "sqlite":   
-        conn = sqlite3.connect("./data/ticket-sales.db")
+        conn = sqlite3.connect(db_path or "./data/ticket-sales.db")
         cur = conn.cursor()
         cur.execute(query)
         conn.commit()
         conn.close()
     elif db_type == "duckdb":
-        conn = duckdb.connect("./data/ticket-sales.db")
+        conn = duckdb.connect(db_path or "./data/ticket-sales.db")
         conn.sql(query)
         conn.close()
     else:
         print("Invalid database type")
 
 # Task B6 - Extract data from (i.e. scrape) a website
-
+def extract_data_from_website(url, scrape_descr):
+    
