@@ -39,6 +39,10 @@ def request_ai_proxy(payload, debug=False, embedding=False):
         result = response.json()
         if debug == True:
             print("USING OLLAMA")
+            # Accumulate the full response for streaming responses
+            full_response = ""
+            if isinstance(result, dict) and 'response' in result:
+                full_response = result['response']
             return result
         print("USING OPENAI")
         if embedding:
@@ -59,7 +63,8 @@ def get_func_name(task_descr: str):
         ],
     }
 
-    response = json.loads(requests.post(url=BASE_URL, headers=headers, json=data).text)
+    response = json.loads(requests.post(
+        url=BASE_URL, headers=headers, json=data).text)
     answer = response["choices"][0]["message"]["content"]
     answer = json.loads(answer)
     func_name = answer["func_name"]
@@ -76,7 +81,7 @@ def code_generation_loop_back_cot(task_descr: str):
     conversation_history = []
     max_iterations = 5
     iteration = 0
-    
+
     # Initial system prompt for code generation
     system_message = {
         "role": "system",
@@ -92,16 +97,16 @@ An example task is : Scrape the following website : https://webscraper.io/test-s
 
 """
     }
-    
+
     conversation_history.append(system_message)
-    
+
     # Add the user's task description to the conversation
     user_message = {
         "role": "user",
         "content": task_descr
     }
     conversation_history.append(user_message)
-    
+
     while iteration < max_iterations:
         # Get code generation/debugging response
         response = request_ai_proxy(
@@ -111,10 +116,10 @@ An example task is : Scrape the following website : https://webscraper.io/test-s
             },
             debug=True
         )
-        
+
         if not response:
             return "Error getting AI response"
-            
+
         # Extract code from response
         try:
             # Execute the generated code in a safe environment
@@ -127,7 +132,8 @@ An example task is : Scrape the following website : https://webscraper.io/test-s
                     return "Code execution skipped"
                 exec(response, exec_globals)
                 code_output["result"] = "Success"
-                code_output["output"] = exec_globals.get("output", "Code executed successfully")
+                code_output["output"] = exec_globals.get(
+                    "output", "Code executed successfully")
                 return code_output
             except Exception as e:
                 # If there are errors, add them to conversation for debugging
@@ -139,16 +145,16 @@ Error message: {str(e)}
 Please debug the code and provide a corrected version."""
                 }
                 conversation_history.append(error_message)
-                
+
                 print("CONVERSATION HISTORY:", conversation_history)
         except Exception as parse_error:
             conversation_history.append({
-                "role": "user", 
+                "role": "user",
                 "content": f"Failed to parse response. Error: {str(parse_error)}"
             })
-        
+
         iteration += 1
-        
+
     return "Max iterations reached without successful code execution"
 
-code_generation_loop_back_cot("Clone the git repo : https://github.com/painful-bug/testing.git and make a commit to it")
+# code_generation_loop_back_cot("Clone the git repo : https://github.com/painful-bug/testing.git and make a commit to it")

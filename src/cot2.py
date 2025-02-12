@@ -31,19 +31,35 @@ Subtasks:
 Code:
 ```python
 [code here]
+
+
+
+NOTE : Always prefer to perform an action using subprocess module if possible. If not, then use other Python code.
+Always return some code. Never return a blank/null response
 ```"""}
         ]
 
     def request_ai(self, messages):
         payload = {
             "messages": messages,
-            "model": "gpt-4o-mini" if not self.debug else "codellama"
+            "model": "gpt-4o-mini" if not self.debug else "codellama",
         }
-        return request_ai_proxy(payload, debug=self.debug)
+        resp = request_ai_proxy(payload, debug=self.debug)
+
+        if self.debug:
+            # Handle Ollama response
+            if isinstance(resp, dict):
+                return resp.get('response', '')
+        # Handle OpenAI response
+        return resp
 
     def extract_code_from_response(self, response):
         code_match = re.search(r'```python\n(.*?)\n```', response, re.DOTALL)
-        return code_match.group(1).strip() if code_match else None
+        print(
+            f"Extracted code: {code_match.group(1).strip() if code_match else None}")
+        resp = code_match.group(1).strip() if code_match else None
+        # print(f"Extracted code: {resp}")
+        return resp
 
     def execute_code(self, code):
         try:
@@ -86,6 +102,9 @@ Analysis: [analysis]
 Fix: [explanation]
 Code:
 [corrected code]
+
+
+NOTE : Always prefer to perform an action using bash commands if possible. If not, then use Python code.
 ```"""
         }
         self.history.append(debug_prompt)
@@ -149,10 +168,11 @@ if __name__ == "__main__":
     agent = AIAgent(debug=False)  # Set debug=True for local Ollama
 
     # Complex multi-step task
-    task = """Clone the repository https://github.com/painful-bug/testing.git, 
-then create a new file called 'output.txt' with current timestamp, 
+    task = """Clone the repository https://github.com/painful-bug/testing.git, change directory into the repository,
+then create a new file called 'output.txt' with current timestamp inside the repository (do not create it outside the repository), 
 and commit it to the repository"""
-
-    result = agent.run_task(task)
-    print(result)
-
+    try:
+        result = agent.run_task(task)
+        print(result)
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
