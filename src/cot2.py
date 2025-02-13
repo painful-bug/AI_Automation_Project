@@ -3,7 +3,7 @@ import re
 import os
 from helpers import request_ai_proxy
 
-
+MAX_TRIES = 3
 class AIAgent:
     def __init__(self, debug=False):
         self.history = []
@@ -120,13 +120,14 @@ NOTE : Always prefer to perform an action using bash commands if possible. If no
             self.current_subtask = 0
 
     def run_task(self, task):
+        tries_count = 0
         self.history = self.generate_initial_prompt(task)
         response = self.request_ai(self.history)
         print(f"Initial response:\n{response}")
 
         self.process_subtasks(response)
 
-        while self.current_subtask < len(self.subtasks):
+        while self.current_subtask < len(self.subtasks) and tries_count < MAX_TRIES:
             print(
                 f"\nProcessing subtask {self.current_subtask+1}/{len(self.subtasks)}: {self.subtasks[self.current_subtask]}")
 
@@ -159,7 +160,7 @@ NOTE : Always prefer to perform an action using bash commands if possible. If no
                 response = debug_response
                 self.history.append(
                     {"role": "assistant", "content": debug_response})
-
+                tries_count+=1
         return "All tasks completed successfully!"
 
 
@@ -168,9 +169,13 @@ if __name__ == "__main__":
     agent = AIAgent(debug=False)  # Set debug=True for local Ollama
 
     # Complex multi-step task
-    task = """Clone the repository https://github.com/painful-bug/testing.git, change directory into the repository,
-then create a new file called 'output.txt' with current timestamp inside the repository (do not create it outside the repository), 
-and commit it to the repository"""
+    # task = """Clone the repository https://github.com/painful-bug/testing.git, change directory into the repository,
+# then create a new file called 'output.txt' with current timestamp inside the repository (do not create it outside the repository), 
+# and commit it to the repository"""
+
+    task = """
+    Transcribe the audio which is in english language, into text and save the output in a file named 'transcription.txt' after creating the transcription.txt. The audio file name is test2.mp3. 
+"""
     try:
         result = agent.run_task(task)
         print(result)
