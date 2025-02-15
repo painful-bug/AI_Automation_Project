@@ -10,7 +10,15 @@ from dotenv import load_dotenv
 from pydantic import Json
 from helpers import cosine_sim, request_ai_proxy
 import duckdb
-import whisper
+# import whisper
+from bs4 import BeautifulSoup
+from PIL import Image
+import markdown
+import csv
+import speech_recognition as sr
+from pydub import AudioSegment
+import subprocess
+import sys
 
 load_dotenv()
 
@@ -239,43 +247,133 @@ def run_sql_query(query, db_type, db_path=None):
         conn.close()
     else:
         print("Invalid database type")
-
+    return resp
 # Task B6 - Extract data from (i.e. scrape) a website
-def extract_data_from_website(url, scrape_descr):
-    pass
+def scrape_website_data(url):
+    output_file = "./data/website_data.html"
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, "html.parser")
+    with open(output_file, "w") as file:
+        file.write(soup.prettify())
+    return soup.prettify()
+
+def compress_image(input_file, quality, output_file="../data/compressed_image.jpg"):
+    img = Image.open(input_file)
+    img.save(output_file, quality=quality)
+
+def convert_markdown_to_html(input_file: str, output_file: str = "../data/markdown_to_html.html"):
+    with open(input_file, "r") as file:
+        html = markdown.markdown(file.read())
+    with open(output_file, "w") as file:
+        file.write(html)
+
+def filter_csv_api_endpoint():
+    return """
+from flask import Flask
+
+app = Flask()
+
+def filter_csv(input_file: str, column: str, value: str, output_file: str):
+    results = []
+    with open(input_file, newline="") as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            if row[column] == value:
+                results.append(row)
+    with open(output_file, "w") as file:
+        json.dump(results, file)
+
+@app.route("/filter_csv", methods=["POST"])
+def filter_csv():
+    input_file = request.args.get("input_file")
+    column = request.args.get("column")
+    value = request.args.get("value")
+    output_file = request.args.get("output_file")
+    filter_csv(input_file, column, value, output_file)
+    return {"result" : "ok"}, 200
+"""      
 
 
-
-
-def transcriber(file_path):
-    """
-    Given a path to an audio file, this function:
-    1. Detects the language of the audio.
-    2. Transcribes the audio in that detected language.
-    3. Saves the transcription to 'transcription.txt'.
-    """
-
-    if not os.path.exists(file_path):
-        print("File not found")
-        return None
-
+def check_dependencies():
+    # Check if ffmpeg is installed
     try:
-        # Load the Whisper model (automatically detects language and transcribes accordingly)
-        model = whisper.load_model("base")
+        subprocess.run(['ffmpeg', '-version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except FileNotFoundError:
+        print("Error: ffmpeg is not installed. Install it using:")
+        print("sudo apt-get update && sudo apt-get install ffmpeg")
+        sys.exit(1)
 
-        # Transcribe the audio file
-        result = model.transcribe(file_path)
-        transcription = result.get("text", "")
-        detected_language = result.get("language", "unknown")
-        print(f"Detected language: {detected_language}")
-
-        # Save the transcription in a file
-        with open("transcription.txt", "w", encoding="utf-8") as f:
-            f.write(transcription)
-
-        return transcription
+def transcriber(audio_path):
+    check_dependencies()
+    # Check if input file exists
+    if not os.path.exists(audio_path):
+        print(f"Error: File '{audio_path}' not found")
+        return
+    
+    # Initialize recognizer
+    recognizer = sr.Recognizer()
+    
+    # Convert mp3 to wav using pydub
+    print("Converting mp3 to wav...")
+    try:
+        audio = AudioSegment.from_mp3(audio_path)
+        wav_path = "/tmp/temp_audio.wav"  # Using /tmp directory for temporary files
+        audio.export(wav_path, format="wav")
     except Exception as e:
-        print(f"An error occurred during transcription: {e}")
-        return None
+        print(f"Error converting audio: {e}")
+        return
+    
+    # Transcribe the audio
+    print("Transcribing audio...")
+    with sr.AudioFile(wav_path) as source:
+        audio_data = recognizer.record(source)
+        try:
+            text = recognizer.recognize_google(audio_data)
+            
+            # Save transcription to file
+            output_path = os.path.join(os.getcwd(), "transcription.txt")
+            with open(output_path, "w") as f:
+                f.write(text)
+            print(f"Transcription saved to: {output_path}")
+            
+        except sr.UnknownValueError:
+            print("Speech recognition could not understand the audio")
+        except sr.RequestError as e:
+            print(f"Could not request results from speech recognition service; {e}")
+        finally:
+            # Clean up temporary wav file
+            if os.path.exists(wav_path):
+                os.remove(wav_path)
+
+# def transcriber(file_path):
+#     """
+#     Given a path to an audio file, this function:
+#     1. Detects the language of the audio.
+#     2. Transcribes the audio in that detected language.
+#     3. Saves the transcription to 'transcription.txt'.
+#     """
+
+#     if not os.path.exists(file_path):
+#         print("File not found")
+#         return None
+
+#     try:
+#         # Load the Whisper model (automatically detects language and transcribes accordingly)
+#         model = whisper.load_model("base")
+
+#         # Transcribe the audio file
+#         result = model.transcribe(file_path)
+#         transcription = result.get("text", "")
+#         detected_language = result.get("language", "unknown")
+#         print(f"Detected language: {detected_language}")
+
+#         # Save the transcription in a file
+#         with open("transcription.txt", "w", encoding="utf-8") as f:
+#             f.write(transcription)
+
+#         return transcription
+#     except Exception as e:
+#         print(f"An error occurred during transcription: {e}")
+#         return None
 
 # run_sql_query('')

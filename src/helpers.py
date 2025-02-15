@@ -4,9 +4,12 @@ import os
 import requests
 from prompts import system_prompt
 from sklearn.metrics.pairwise import cosine_similarity
+
+
 from dotenv import load_dotenv
 
 load_dotenv()
+
 
 BASE_URL = "http://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
 headers = {
@@ -54,6 +57,28 @@ def request_ai_proxy(payload, debug=False, embedding=False):
         return 500
 
 
+# def get_func_name(task_descr: str):
+#     data = {
+#         "model": "gpt-4o-mini",
+#         "messages": [
+#             {"role": "system", "content": system_prompt},
+#             {"role": "user", "content": task_descr},
+#         ],
+#     }
+
+#     response = json.loads(requests.post(
+#         url=BASE_URL, headers=headers, json=data).text)
+#     answer = response["choices"][0]["message"]["content"]
+#     answer = json.loads(answer)
+#     func_name = answer["func_name"]
+#     args = answer["arguments"]
+#     if args:
+#         answer_json = {"func_name": func_name, "arguments": args}
+#     else:
+#         answer_json = {"func_name": func_name}
+#     return answer_json
+
+
 def get_func_name(task_descr: str):
     data = {
         "model": "gpt-4o-mini",
@@ -63,18 +88,36 @@ def get_func_name(task_descr: str):
         ],
     }
 
-    response = json.loads(requests.post(
-        url=BASE_URL, headers=headers, json=data).text)
-    answer = response["choices"][0]["message"]["content"]
-    answer = json.loads(answer)
-    func_name = answer["func_name"]
-    args = answer["arguments"]
-    if args:
-        answer_json = {"func_name": func_name, "arguments": args}
-    else:
-        answer_json = {"func_name": func_name}
-    return answer_json
+    # Make the API call and decode the response as JSON.
+    response = requests.post(url=BASE_URL, headers=headers, json=data)
+    response_data = response.json()
+    answer_str = response_data["choices"][0]["message"]["content"]
 
+    # Remove markdown formatting if present.
+    # This will remove any occurrences of code fences like ``` or ```json
+    if "```" in answer_str:
+        answer_str = answer_str.replace("```json", "")
+        answer_str = answer_str.replace("```", "")
+    answer_str = answer_str.strip()
+
+    # First try to decode the cleaned string directly.
+    try:
+        answer = json.loads(answer_str)
+    except json.JSONDecodeError:
+        # If that fails, attempt to extract a valid JSON substring.
+        start = answer_str.find("{")
+        end = answer_str.rfind("}")
+        if start == -1 or end == -1:
+            raise ValueError("No valid JSON found in AI response: " + answer_str)
+        json_str = answer_str[start:end+1]
+        try:
+            answer = json.loads(json_str)
+        except json.JSONDecodeError as e:
+            raise ValueError("JSON extraction error: " + str(e) + "\nExtracted string: " + json_str)
+
+    func_name = answer.get("func_name")
+    args = answer.get("arguments", [])
+    return {"func_name": func_name, "arguments": args}
 
 def code_generation_loop_back_cot(task_descr: str):
     # Initialize variables to track the conversation and code state
@@ -156,5 +199,6 @@ Please debug the code and provide a corrected version."""
         iteration += 1
 
     return "Max iterations reached without successful code execution"
+
 
 # code_generation_loop_back_cot("Clone the git repo : https://github.com/painful-bug/testing.git and make a commit to it")

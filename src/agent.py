@@ -16,6 +16,7 @@ class AIAgent:
         self.history = []
         self.payload = {
             "model": "gpt-4o-mini",
+            "temperature" : 0.7,
             "messages": self.history
         }
         self.debug = debug
@@ -150,13 +151,13 @@ NOTE : Always prefer to perform an action using bash commands if possible. If no
             self.current_subtask = 0
 
     def run_task(self, task):
-        tries_count = 0
         self.history = self.generate_initial_prompt(task)
         self.refresh_payload()
         response = request_ai_proxy(self.payload)
         print(f"Initial response:\n{response}")
 
         self.process_subtasks(response)
+        tries_count = 0
 
         while self.current_subtask < len(self.subtasks) and tries_count < MAX_TRIES:
             print(
@@ -197,48 +198,36 @@ NOTE : Always prefer to perform an action using bash commands if possible. If no
         return "All tasks completed successfully!"
 
 
-# Example usage
+# # Example usage
 if __name__ == "__main__":
     agent = AIAgent(debug=False)
 
 
-#     task = """
-#     Transcribe the audio which is in english language, into text and save the output in a file named 'transcription.txt' after creating the transcription.txt. The audio file name is test2.mp3.
-# """
+    task = """
+    search the internet for physics enabled neural networks in Visual SLAM
+"""
     # task=""" Create a streamlit app in a file called meow.py (and run IT by using streamlit run <app.name>.py) It should have a simple text input and analyse button.It uses the hugging face api-sentiment analysis. when the user presses on analyse button, is used for sentiment prediction and the final outcome is shown on screen. run it on port 3030"""
     # task = """
     # run a yolo v8n model using the camera for object detection using ultralytics library"""
-    task = """
-    convert the following markdown into HTML and save it in a file named 'output.html' : 
-
-    ```markdown
-    # Heading 1
-    ## Heading 2
-    ### Heading 3
-    #### Heading 4
-    ##### Heading 5
-    - List item 1
-    - List item 2
-    [-] Checkbox item 1
-    ```
-    """
-    try:
-        check_audio_payload = {
-            "model": "gpt-4o-mini",
-            "messages": [{"role": "system", "content": """You are given a task {{task}}.Check if the task requires audio transcription If yes, return this python dictionary : {"is_audio": true, "file_path": "{{relative path of the audio file}}"}; otherwise, return {"is_audio": false, "file_path": null}."""}, {"role": "user", "content": task}]
-        }
-        d = request_ai_proxy(payload=check_audio_payload)
-        print(" D: ", d)
-        d = json.loads(d)
-        is_audio_file, audio_file_path = d.values()
-        print("IS_AUDIO_FILE : ", is_audio_file)
-        print("AUDIO FILE PATH : ", audio_file_path)
-        if bool(is_audio_file) and audio_file_path is not None:
-            from transcriber import transcriber
-            transcriber(audio_file_path)
-        else:
-            print("Task does not require audio transcription. Running the normal agent!")
-            result = agent.run_task(task)
-            print(result)
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
+    def run_agent(task):
+        try:
+            check_audio_payload = {
+                "model": "gpt-4o-mini",
+                "messages": [{"role": "system", "content": """You are given a task {{task}}.Check if the task requires audio transcription If yes, return this python dictionary : {"is_audio": true, "file_path": "{{relative path of the audio file}}"}; otherwise, return {"is_audio": false, "file_path": null}."""}, {"role": "user", "content": task}]
+            }
+            d = request_ai_proxy(payload=check_audio_payload)
+            print(" D: ", d)
+            d = json.loads(d)
+            is_audio_file, audio_file_path = d.values()
+            print("IS_AUDIO_FILE : ", is_audio_file)
+            print("AUDIO FILE PATH : ", audio_file_path)
+            if bool(is_audio_file) and audio_file_path is not None:
+                from transcriber import transcriber
+                transcriber(audio_file_path)
+            else:
+                print("Task does not require audio transcription. Running the normal agent!")
+                result = agent.run_task(task)
+                print(result)
+        except Exception as e:
+            print(f"An error occurred: {str(e)}")
+    run_agent(task)
