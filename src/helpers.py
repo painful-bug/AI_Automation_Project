@@ -20,6 +20,7 @@ def cosine_sim(embedding1, embedding2):
 
 
 def request_ai_proxy(payload, debug=False, embedding=False):
+    print("REQUESTING AI PROXY...")
     if embedding:
         print("USING EMBEDDINGS")
         BASE_URL = "http://aiproxy.sanand.workers.dev/openai/v1/embeddings"
@@ -39,10 +40,9 @@ def request_ai_proxy(payload, debug=False, embedding=False):
         result = response.json()
         if debug == True:
             print("USING OLLAMA")
-            # Accumulate the full response for streaming responses
-            full_response = ""
+            # For Ollama, directly return the response text
             if isinstance(result, dict) and 'response' in result:
-                full_response = result['response']
+                return result['response']
             return result
         print("USING OPENAI")
         if embedding:

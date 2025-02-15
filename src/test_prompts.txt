@@ -1,0 +1,1 @@
+run the following sql query : 'SELECT * FROM tickets WHERE price > 80' on the database found in the following path 'data/ticket-sales.db'

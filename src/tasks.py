@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from pydantic import Json
 from helpers import cosine_sim, request_ai_proxy
 import duckdb
+import whisper
 
 load_dotenv()
 
@@ -219,20 +220,62 @@ def clone_and_commit(url=None):
 
 # Task B5 - Run a SQL query on a SQLite or DuckDB database
 
-def run_sql_query(query, db_type = "sqlite", db_path=None):
-    if db_type == "sqlite":   
+def run_sql_query(query, db_type, db_path=None):
+    print("DB_TYPE : ", db_type)
+    print("DB_PATH : ", db_path)
+    print("QUERY : ", query)
+    print("Running SQL query...")
+    if db_type == "sqlite":
         conn = sqlite3.connect(db_path or "./data/ticket-sales.db")
         cur = conn.cursor()
-        cur.execute(query)
+        resp = cur.execute(query).fetchall()
+        print("QUERY RESPONSE : ", resp)
         conn.commit()
         conn.close()
     elif db_type == "duckdb":
         conn = duckdb.connect(db_path or "./data/ticket-sales.db")
-        conn.sql(query)
+        resp = conn.sql(query).fetchall()
+        print("QUERY RESPONSE : ", resp)
         conn.close()
     else:
         print("Invalid database type")
 
 # Task B6 - Extract data from (i.e. scrape) a website
 def extract_data_from_website(url, scrape_descr):
-    
+    pass
+
+
+
+
+def transcriber(file_path):
+    """
+    Given a path to an audio file, this function:
+    1. Detects the language of the audio.
+    2. Transcribes the audio in that detected language.
+    3. Saves the transcription to 'transcription.txt'.
+    """
+
+    if not os.path.exists(file_path):
+        print("File not found")
+        return None
+
+    try:
+        # Load the Whisper model (automatically detects language and transcribes accordingly)
+        model = whisper.load_model("base")
+
+        # Transcribe the audio file
+        result = model.transcribe(file_path)
+        transcription = result.get("text", "")
+        detected_language = result.get("language", "unknown")
+        print(f"Detected language: {detected_language}")
+
+        # Save the transcription in a file
+        with open("transcription.txt", "w", encoding="utf-8") as f:
+            f.write(transcription)
+
+        return transcription
+    except Exception as e:
+        print(f"An error occurred during transcription: {e}")
+        return None
+
+# run_sql_query('')
